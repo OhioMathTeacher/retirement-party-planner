@@ -264,6 +264,30 @@ function App() {
                 Copy Link
               </button>
             </div>
+            
+            <div className="social-share">
+              <p style={{marginTop: '20px', marginBottom: '12px', fontWeight: '600'}}>Or share directly:</p>
+              <div className="social-buttons">
+                <button 
+                  onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank')}
+                  className="social-btn facebook"
+                >
+                  Facebook
+                </button>
+                <button 
+                  onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=Share your memories of Catherine`, '_blank')}
+                  className="social-btn twitter"
+                >
+                  Twitter
+                </button>
+                <button 
+                  onClick={() => window.open(`mailto:?subject=Share your memories of Catherine&body=Please share your memories at ${window.location.href}`, '_blank')}
+                  className="social-btn email"
+                >
+                  Email
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="memories-stream">
