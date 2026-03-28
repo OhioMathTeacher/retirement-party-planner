@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
-import './App.css'
+import './App-light.css'
+import { db, storage } from './firebase'
+import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 function App() {
   const [currentView, setCurrentView] = useState('home')
   const [memories, setMemories] = useState([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     memory: '',
@@ -12,61 +16,69 @@ function App() {
     mediaPreview: null
   })
 
-  // Load memories from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('catherineMemories')
-    if (saved) {
-      setMemories(JSON.parse(saved))
-    }
-  }, [])
-
-  // Save memories to localStorage whenever they change
-  useEffect(() => {
-    if (memories.length > 0) {
-      localStorage.setItem('catherineMemories', JSON.stringify(memories))
-    }
-  }, [memories])
-
-  const handleSubmitMemory = (e) => {
-    e.preventDefault()
-    
-    const newMemory = {
-      id: Date.now(),
-      name: formData.name,
-      memory: formData.memory,
-      isPublic: formData.isPublic,
-      media: formData.mediaPreview,
-      mediaType: formData.media?.type.startsWith('image') ? 'image' : 'video',
-      timestamp: new Date().toISOString()
-    }
-
-    setMemories([...memories, newMemory])
-    
-    // Reset form
-    setFormData({
-      name: '',
-      memory: '',
-      isPublic: true,
-      media: null,
-      mediaPreview: null
+    const q = query(collection(db, 'memories'), orderBy('timestamp', 'desc'))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const liveMemories = []
+      snapshot.forEach((doc) => {
+        liveMemories.push({ id: doc.id, ...doc.data() })
+      })
+      setMemories(liveMemories)
     })
-    
-    alert('Thank you for sharing your memory!')
-    setCurrentView('home')
-  }
+    return () => unsubscribe()
+  }, [])
 
   const handleMediaUpload = (e) => {
     const file = e.target.files[0]
     if (file) {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          media: file,
-          mediaPreview: reader.result
-        })
+      setFormData({
+        ...formData,
+        media: file,
+        mediaPreview: URL.createObjectURL(file)
+      })
+    }
+  }
+
+  const handleSubmitMemory = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    
+    try {
+      let mediaUrl = null
+      let mediaType = null
+
+      if (formData.media) {
+        const fileRef = ref(storage, `memories/${Date.now()}_${formData.media.name}`)
+        await uploadBytes(fileRef, formData.media)
+        mediaUrl = await getDownloadURL(fileRef)
+        mediaType = formData.media.type.startsWith('image') ? 'image' : 'video'
       }
-      reader.readAsDataURL(file)
+
+      await addDoc(collection(db, 'memories'), {
+        name: formData.name,
+        memory: formData.memory,
+        isPublic: formData.isPublic,
+        media: mediaUrl,
+        mediaType: mediaType,
+        timestamp: new Date().toISOString()
+      })
+      
+      setFormData({
+        name: '',
+        memory: '',
+        isPublic: true,
+        media: null,
+        mediaPreview: null
+      })
+      
+      alert('Thank you for sharing your memory!')
+      setCurrentView('home')
+
+    } catch (error) {
+      console.error("Error saving to Firebase: ", error)
+      alert("Uh oh, something went wrong saving your memory. Please try again!")
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -76,35 +88,33 @@ function App() {
     <div className="App">
       {currentView === 'home' && (
         <div className="home-view">
-          <h1>Welcome to Catherine's Retirement Tribute</h1>
-          <p className="subtitle">
-            Please help us celebrate Catherine by sharing your memories, photos, videos, 
-            or by inviting others to contribute. Use the sections below to participate!
-          </p>
+          <div className="hero-banner">
+            <img src="/photos/20151020_K04116_344.jpg" alt="Campus in Autumn" className="hero-img" />
+            <div className="hero-content">
+              <h1>Welcome to Catherine's Retirement Tribute</h1>
+              <p className="subtitle">
+                Please help us celebrate Catherine by sharing your memories, photos, videos, 
+                or by inviting others to contribute. Use the sections below to participate!
+              </p>
+            </div>
+          </div>
 
           <div className="sections">
             <div className="section-card" onClick={() => setCurrentView('share')}>
               <h2>Share a Memory</h2>
-              <p>
-                Type your story or tribute here. You can choose to keep it private for Catherine 
-                or share it publicly in the Outreach stream.
-              </p>
+              <p>Type your story or tribute here. You can choose to keep it private for Catherine or share it publicly.</p>
               <button className="section-btn">Share Your Memory →</button>
             </div>
 
             <div className="section-card" onClick={() => setCurrentView('upload')}>
               <h2>Upload Photos or Video</h2>
-              <p>
-                Upload images or videos, or record a video message right here in the app.
-              </p>
+              <p>Upload images or videos, or record a video message right here in the app.</p>
               <button className="section-btn">Upload Media →</button>
             </div>
 
             <div className="section-card" onClick={() => setCurrentView('outreach')}>
               <h2>Outreach & Contacts</h2>
-              <p>
-                Invite others to contribute, or view the stream of shared memories if made public.
-              </p>
+              <p>Invite others to contribute, or view the stream of shared memories if made public.</p>
               <button className="section-btn">View & Share →</button>
             </div>
           </div>
@@ -113,10 +123,7 @@ function App() {
 
       {currentView === 'share' && (
         <div className="form-view">
-          <button className="back-btn" onClick={() => setCurrentView('home')}>
-            ← Back to Home
-          </button>
-          
+          <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
           <h2>Share Your Memory of Catherine</h2>
           
           <form onSubmit={handleSubmitMemory}>
@@ -154,8 +161,10 @@ function App() {
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="submit-btn">Submit Memory</button>
-              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')}>
+              <button type="submit" className="submit-btn" disabled={isSubmitting}>
+                {isSubmitting ? 'Saving...' : 'Submit Memory'}
+              </button>
+              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')} disabled={isSubmitting}>
                 Cancel
               </button>
             </div>
@@ -165,10 +174,7 @@ function App() {
 
       {currentView === 'upload' && (
         <div className="form-view">
-          <button className="back-btn" onClick={() => setCurrentView('home')}>
-            ← Back to Home
-          </button>
-          
+          <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
           <h2>Upload Photos or Videos</h2>
           
           <form onSubmit={handleSubmitMemory}>
@@ -190,8 +196,8 @@ function App() {
                 accept="image/*,video/*"
                 onChange={handleMediaUpload}
                 className="file-input"
+                required
               />
-              
               {formData.mediaPreview && (
                 <div className="media-preview">
                   {formData.media?.type.startsWith('image') ? (
@@ -225,10 +231,10 @@ function App() {
             </div>
 
             <div className="form-actions">
-              <button type="submit" className="submit-btn" disabled={!formData.media}>
-                Upload Media
+              <button type="submit" className="submit-btn" disabled={!formData.media || isSubmitting}>
+                {isSubmitting ? 'Uploading...' : 'Upload Media'}
               </button>
-              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')}>
+              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')} disabled={isSubmitting}>
                 Cancel
               </button>
             </div>
@@ -238,21 +244,24 @@ function App() {
 
       {currentView === 'outreach' && (
         <div className="outreach-view">
-          <button className="back-btn" onClick={() => setCurrentView('home')}>
-            ← Back to Home
-          </button>
+          <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
           
+          <div className="outreach-header-image">
+             <img src="/photos/20241104_K12125_005.jpg" alt="Autumn Leaves" />
+          </div>
+
           <h2>Outreach & Public Memories</h2>
           
           <div className="share-section">
             <h3>Invite Others</h3>
-            <p>Share this link to invite others to contribute:</p>
+            <p>Share this link to invite others to contribute to the tribute:</p>
             <div className="share-link">
               <input 
                 type="text" 
                 value={window.location.href} 
                 readOnly 
                 onClick={(e) => e.target.select()}
+                title="This is the direct link to this website"
               />
               <button 
                 onClick={() => {
@@ -260,33 +269,10 @@ function App() {
                   alert('Link copied to clipboard!')
                 }}
                 className="copy-btn"
+                title="Click to copy the website address to your clipboard"
               >
                 Copy Link
               </button>
-            </div>
-            
-            <div className="social-share">
-              <p style={{marginTop: '20px', marginBottom: '12px', fontWeight: '600'}}>Or share directly:</p>
-              <div className="social-buttons">
-                <button 
-                  onClick={() => window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`, '_blank')}
-                  className="social-btn facebook"
-                >
-                  Facebook
-                </button>
-                <button 
-                  onClick={() => window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=Share your memories of Catherine`, '_blank')}
-                  className="social-btn twitter"
-                >
-                  Twitter
-                </button>
-                <button 
-                  onClick={() => window.open(`mailto:?subject=Share your memories of Catherine&body=Please share your memories at ${window.location.href}`, '_blank')}
-                  className="social-btn email"
-                >
-                  Email
-                </button>
-              </div>
             </div>
           </div>
 
@@ -309,7 +295,7 @@ function App() {
                     {memory.media && (
                       <div className="memory-media">
                         {memory.mediaType === 'image' ? (
-                          <img src={memory.media} alt="Memory" />
+                          <img src={memory.media} alt="Memory" loading="lazy" />
                         ) : (
                           <video src={memory.media} controls />
                         )}
