@@ -2,20 +2,15 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Your web app's Firebase configuration
-// (You will eventually replace these dummy values with your real Firebase keys)
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAHdateASYSNr6xpVYXR1dNn1wNvceFI5c",
+  authDomain: "catherine-retirement.firebaseapp.com",
+  projectId: "catherine-retirement",
+  storageBucket: "catherine-retirement.firebasestorage.app",
+  messagingSenderId: "850123579100",
+  appId: "1:850123579100:web:edb358f3ce948fbe0ede19"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Initialize Cloud Firestore and Cloud Storage
 export const db = getFirestore(app);
 export const storage = getStorage(app);

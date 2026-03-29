@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App-light.css'
+import heroBg from './assets/20241104_K12125_005.jpg'
 import { db, storage } from './firebase'
 import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -8,6 +9,10 @@ function App() {
   const [currentView, setCurrentView] = useState('home')
   const [memories, setMemories] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState(null)
+  const [lightboxItem, setLightboxItem] = useState(null)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     memory: '',
@@ -31,69 +36,92 @@ function App() {
   const handleMediaUpload = (e) => {
     const file = e.target.files[0]
     if (file) {
-      setFormData({
-        ...formData,
-        media: file,
-        mediaPreview: URL.createObjectURL(file)
-      })
+      setFormData({ ...formData, media: file, mediaPreview: URL.createObjectURL(file) })
     }
+  }
+
+  const withTimeout = (promise, ms = 15000) => {
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), ms)
+    )
+    return Promise.race([promise, timeout])
   }
 
   const handleSubmitMemory = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
-    
+
     try {
       let mediaUrl = null
       let mediaType = null
 
       if (formData.media) {
         const fileRef = ref(storage, `memories/${Date.now()}_${formData.media.name}`)
-        await uploadBytes(fileRef, formData.media)
-        mediaUrl = await getDownloadURL(fileRef)
+        await withTimeout(uploadBytes(fileRef, formData.media))
+        mediaUrl = await withTimeout(getDownloadURL(fileRef))
         mediaType = formData.media.type.startsWith('image') ? 'image' : 'video'
       }
 
-      await addDoc(collection(db, 'memories'), {
+      addDoc(collection(db, 'memories'), {
         name: formData.name,
         memory: formData.memory,
         isPublic: formData.isPublic,
         media: mediaUrl,
         mediaType: mediaType,
-        timestamp: Date.now() 
-      })
-      
-      setFormData({
-        name: '',
-        memory: '',
-        isPublic: true,
-        media: null,
-        mediaPreview: null
-      })
-      
+        timestamp: new Date().toISOString()
+      }).catch(err => console.error("Firebase write failed:", err))
+
+      setFormData({ name: '', memory: '', isPublic: true, media: null, mediaPreview: null })
       setIsSubmitting(false)
-      alert('Thank you for sharing your memory!')
-      setCurrentView('home')
+      setSubmitStatus({ type: 'success', message: 'Thank you for sharing your memory!' })
+      setTimeout(() => { setSubmitStatus(null); setCurrentView('home') }, 2000)
 
     } catch (error) {
       console.error("Error saving to Firebase: ", error)
-      alert("Uh oh, something went wrong. Please try again!")
       setIsSubmitting(false)
+      setSubmitStatus({ type: 'error', message: 'Something went wrong saving your memory. Please try again.' })
     }
   }
 
   const publicMemories = memories.filter(m => m.isPublic)
+  const mediaMemories = publicMemories.filter(m => m.media)
+  const textMemories = publicMemories.filter(m => m.memory && !m.media)
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2500)
+  }
 
   return (
     <div className="App">
+
+      {/* Lightbox */}
+      {lightboxItem && (
+        <div className="lightbox" onClick={() => setLightboxItem(null)}>
+          <button className="lightbox-close" onClick={() => setLightboxItem(null)}>✕</button>
+          <div className="lightbox-content" onClick={e => e.stopPropagation()}>
+            {lightboxItem.mediaType === 'image' ? (
+              <img src={lightboxItem.media} alt={lightboxItem.memory || 'Memory'} />
+            ) : (
+              <video src={lightboxItem.media} controls autoPlay />
+            )}
+            <div className="lightbox-caption">
+              <strong>{lightboxItem.name}</strong>
+              {lightboxItem.memory && <p>{lightboxItem.memory}</p>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {currentView === 'home' && (
         <div className="home-view">
           <div className="hero-banner">
-            <img src="/photos/20151020_K04116_344.jpg" alt="Campus in Autumn" className="hero-img" />
+            <img src={heroBg} alt="Catherine's Retirement" className="hero-img" />
             <div className="hero-content">
               <h1>Welcome to Catherine's Retirement Tribute</h1>
               <p className="subtitle">
-                Please help us celebrate Catherine by sharing your memories, photos, videos, 
+                Please help us celebrate Catherine by sharing your memories, photos, videos,
                 or by inviting others to contribute. Use the sections below to participate!
               </p>
             </div>
@@ -102,22 +130,46 @@ function App() {
           <div className="sections">
             <div className="section-card" onClick={() => setCurrentView('share')}>
               <h2>Share a Memory</h2>
-              <p>Type your story or tribute here. You can choose to keep it private for Catherine or share it publicly.</p>
+              <p>Write your story or tribute. Keep it private for Catherine or share it publicly.</p>
               <button className="section-btn">Share Your Memory →</button>
             </div>
 
             <div className="section-card" onClick={() => setCurrentView('upload')}>
               <h2>Upload Photos or Video</h2>
-              <p>Upload images or videos, or record a video message right here in the app.</p>
+              <p>Upload images or videos to add to the tribute gallery.</p>
               <button className="section-btn">Upload Media →</button>
             </div>
 
             <div className="section-card" onClick={() => setCurrentView('outreach')}>
-              <h2>Outreach & Contacts</h2>
-              <p>Invite others to contribute, or view the stream of shared memories if made public.</p>
-              <button className="section-btn">View & Share →</button>
+              <h2>View Tributes</h2>
+              <p>Browse the photo gallery, read shared memories, and invite others to contribute.</p>
+              <button className="section-btn">View Tributes →</button>
             </div>
           </div>
+
+          {publicMemories.length > 0 && (
+            <div className="home-feed">
+              <h3>Recent Memories</h3>
+              <div className="corkboard">
+              <div className="home-feed-grid">
+                {publicMemories.slice(0, 5).map(memory => (
+                  <div key={memory.id} className="home-feed-card" onClick={() => setCurrentView('outreach')}>
+                    {memory.media && memory.mediaType === 'image' && (
+                      <img src={memory.media} alt={memory.memory || 'Memory'} loading="lazy" />
+                    )}
+                    <div className="home-feed-body">
+                      <strong>{memory.name}</strong>
+                      {memory.memory && <p>{memory.memory}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="see-all-btn" onClick={() => setCurrentView('outreach')}>
+                See all tributes →
+              </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -125,7 +177,7 @@ function App() {
         <div className="form-view">
           <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
           <h2>Share Your Memory of Catherine</h2>
-          
+
           <form onSubmit={handleSubmitMemory}>
             <div className="form-group">
               <label>Your Name</label>
@@ -160,11 +212,15 @@ function App() {
               </label>
             </div>
 
+            {submitStatus && (
+              <div className={`submit-status ${submitStatus.type}`}>{submitStatus.message}</div>
+            )}
+
             <div className="form-actions">
               <button type="submit" className="submit-btn" disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Submit Memory'}
               </button>
-              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')} disabled={isSubmitting}>
+              <button type="button" className="cancel-btn" onClick={() => { setIsSubmitting(false); setSubmitStatus(null); setCurrentView('home') }}>
                 Cancel
               </button>
             </div>
@@ -176,7 +232,7 @@ function App() {
         <div className="form-view">
           <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
           <h2>Upload Photos or Videos</h2>
-          
+
           <form onSubmit={handleSubmitMemory}>
             <div className="form-group">
               <label>Your Name</label>
@@ -230,11 +286,15 @@ function App() {
               </label>
             </div>
 
+            {submitStatus && (
+              <div className={`submit-status ${submitStatus.type}`}>{submitStatus.message}</div>
+            )}
+
             <div className="form-actions">
               <button type="submit" className="submit-btn" disabled={!formData.media || isSubmitting}>
                 {isSubmitting ? 'Uploading...' : 'Upload Media'}
               </button>
-              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')} disabled={isSubmitting}>
+              <button type="button" className="cancel-btn" onClick={() => { setIsSubmitting(false); setSubmitStatus(null); setCurrentView('home') }}>
                 Cancel
               </button>
             </div>
@@ -242,48 +302,61 @@ function App() {
         </div>
       )}
 
-      {currentView === 'outreach' && (
+{currentView === 'outreach' && (
         <div className="outreach-view">
           <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
-          
+
           <div className="outreach-header-image">
-             <img src="/photos/20241104_K12125_005.jpg" alt="Autumn Leaves" />
+            <img src={heroBg} alt="Autumn Leaves" />
           </div>
 
-          <h2>Outreach & Public Memories</h2>
-          
+          <h2>View Tributes</h2>
+
           <div className="share-section">
             <h3>Invite Others</h3>
             <p>Share this link to invite others to contribute to the tribute:</p>
             <div className="share-link">
-              <input 
-                type="text" 
-                value="https://golden-sfogliatella-f0bb3c.netlify.app" 
-                readOnly 
+              <input
+                type="text"
+                value={window.location.href}
+                readOnly
                 onClick={(e) => e.target.select()}
-                title="This is the direct link to this website"
               />
-              <button 
-                onClick={() => {
-                  navigator.clipboard.writeText("https://golden-sfogliatella-f0bb3c.netlify.app") 
-                  alert('Link copied to clipboard!')
-                }}
-                className="copy-btn"
-                title="Click to copy the website address to your clipboard"
-              >
-                Copy Link
+              <button onClick={handleCopyLink} className="copy-btn">
+                {linkCopied ? 'Copied!' : 'Copy Link'}
               </button>
             </div>
           </div>
 
+          {mediaMemories.length > 0 && (
+            <div className="memories-stream">
+              <h3>Photos & Videos ({mediaMemories.length})</h3>
+              <div className="gallery-grid">
+                {mediaMemories.map(memory => (
+                  <div key={memory.id} className="gallery-item" onClick={() => setLightboxItem(memory)}>
+                    {memory.mediaType === 'image' ? (
+                      <img src={memory.media} alt={memory.memory || 'Memory'} loading="lazy" />
+                    ) : (
+                      <video src={memory.media} />
+                    )}
+                    <div className="gallery-caption">
+                      <strong>{memory.name}</strong>
+                      {memory.memory && <p>{memory.memory}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="memories-stream">
-            <h3>Public Memories ({publicMemories.length})</h3>
-            
-            {publicMemories.length === 0 ? (
-              <p className="no-memories">No public memories shared yet. Be the first!</p>
+            <h3>Written Memories ({textMemories.length})</h3>
+
+            {textMemories.length === 0 ? (
+              <p className="no-memories">No written memories shared yet. Be the first!</p>
             ) : (
               <div className="memories-grid">
-                {publicMemories.map(memory => (
+                {textMemories.map(memory => (
                   <div key={memory.id} className="memory-card">
                     <div className="memory-header">
                       <strong>{memory.name}</strong>
@@ -291,20 +364,7 @@ function App() {
                         {new Date(memory.timestamp).toLocaleDateString()}
                       </span>
                     </div>
-                    
-                    {memory.media && (
-                      <div className="memory-media">
-                        {memory.mediaType === 'image' ? (
-                          <img src={memory.media} alt="Memory" loading="lazy" />
-                        ) : (
-                          <video src={memory.media} controls />
-                        )}
-                      </div>
-                    )}
-                    
-                    {memory.memory && (
-                      <p className="memory-text">{memory.memory}</p>
-                    )}
+                    <p className="memory-text">{memory.memory}</p>
                   </div>
                 ))}
               </div>
@@ -312,6 +372,17 @@ function App() {
           </div>
         </div>
       )}
+      <footer className="site-footer">
+        <button className="about-link" onClick={() => setShowAbout(!showAbout)}>
+          About this site
+        </button>
+        {showAbout && (
+          <div className="about-panel">
+            Developed by <strong>Todd Edwards</strong> using <strong>Claude Code</strong> + <strong>VS Code</strong>.
+            Your submissions are securely stored in <strong>Google Firebase</strong>.
+          </div>
+        )}
+      </footer>
     </div>
   )
 }
