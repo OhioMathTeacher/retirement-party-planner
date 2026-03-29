@@ -39,30 +39,37 @@ function App() {
     }
   }
 
+  const withTimeout = (promise, ms = 15000) => {
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), ms)
+    )
+    return Promise.race([promise, timeout])
+  }
+
   const handleSubmitMemory = async (e) => {
     e.preventDefault()
     setIsSubmitting(true)
-    
+
     try {
       let mediaUrl = null
       let mediaType = null
 
       if (formData.media) {
         const fileRef = ref(storage, `memories/${Date.now()}_${formData.media.name}`)
-        await uploadBytes(fileRef, formData.media)
-        mediaUrl = await getDownloadURL(fileRef)
+        await withTimeout(uploadBytes(fileRef, formData.media))
+        mediaUrl = await withTimeout(getDownloadURL(fileRef))
         mediaType = formData.media.type.startsWith('image') ? 'image' : 'video'
       }
 
-      await addDoc(collection(db, 'memories'), {
+      await withTimeout(addDoc(collection(db, 'memories'), {
         name: formData.name,
         memory: formData.memory,
         isPublic: formData.isPublic,
         media: mediaUrl,
         mediaType: mediaType,
         timestamp: new Date().toISOString()
-      })
-      
+      }))
+
       setFormData({
         name: '',
         memory: '',
@@ -70,7 +77,7 @@ function App() {
         media: null,
         mediaPreview: null
       })
-      
+
       alert('Thank you for sharing your memory!')
       setCurrentView('home')
 
@@ -164,7 +171,7 @@ function App() {
               <button type="submit" className="submit-btn" disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Submit Memory'}
               </button>
-              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')} disabled={isSubmitting}>
+              <button type="button" className="cancel-btn" onClick={() => { setIsSubmitting(false); setCurrentView('home') }}>
                 Cancel
               </button>
             </div>
@@ -234,7 +241,7 @@ function App() {
               <button type="submit" className="submit-btn" disabled={!formData.media || isSubmitting}>
                 {isSubmitting ? 'Uploading...' : 'Upload Media'}
               </button>
-              <button type="button" className="cancel-btn" onClick={() => setCurrentView('home')} disabled={isSubmitting}>
+              <button type="button" className="cancel-btn" onClick={() => { setIsSubmitting(false); setCurrentView('home') }}>
                 Cancel
               </button>
             </div>
