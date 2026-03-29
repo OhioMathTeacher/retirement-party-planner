@@ -153,7 +153,7 @@ function App() {
               <div className="corkboard">
               <div className="home-feed-grid">
                 {publicMemories.slice(0, 5).map(memory => (
-                  <div key={memory.id} className="home-feed-card">
+                  <div key={memory.id} className="home-feed-card" onClick={() => setCurrentView('outreach')}>
                     {memory.media && memory.mediaType === 'image' && (
                       <img src={memory.media} alt={memory.memory || 'Memory'} loading="lazy" />
                     )}
