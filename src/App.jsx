@@ -8,6 +8,7 @@ function App() {
   const [currentView, setCurrentView] = useState('home')
   const [memories, setMemories] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState(null) // { type: 'success' | 'error', message: string }
   const [formData, setFormData] = useState({
     name: '',
     memory: '',
@@ -78,12 +79,15 @@ function App() {
         mediaPreview: null
       })
 
-      alert('Thank you for sharing your memory!')
-      setCurrentView('home')
+      setSubmitStatus({ type: 'success', message: 'Thank you for sharing your memory!' })
+      setTimeout(() => {
+        setSubmitStatus(null)
+        setCurrentView('home')
+      }, 2000)
 
     } catch (error) {
       console.error("Error saving to Firebase: ", error)
-      alert("Uh oh, something went wrong saving your memory. Please try again!")
+      setSubmitStatus({ type: 'error', message: 'Something went wrong saving your memory. Please try again.' })
     } finally {
       setIsSubmitting(false)
     }
@@ -167,11 +171,17 @@ function App() {
               </label>
             </div>
 
+            {submitStatus && (
+              <div className={`submit-status ${submitStatus.type}`}>
+                {submitStatus.message}
+              </div>
+            )}
+
             <div className="form-actions">
               <button type="submit" className="submit-btn" disabled={isSubmitting}>
                 {isSubmitting ? 'Saving...' : 'Submit Memory'}
               </button>
-              <button type="button" className="cancel-btn" onClick={() => { setIsSubmitting(false); setCurrentView('home') }}>
+              <button type="button" className="cancel-btn" onClick={() => { setIsSubmitting(false); setSubmitStatus(null); setCurrentView('home') }}>
                 Cancel
               </button>
             </div>
