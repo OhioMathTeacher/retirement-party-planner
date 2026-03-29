@@ -145,6 +145,28 @@ function App() {
               <button className="section-btn">View Tributes →</button>
             </div>
           </div>
+
+          {publicMemories.length > 0 && (
+            <div className="home-feed">
+              <h3>Recent Memories</h3>
+              <div className="home-feed-grid">
+                {publicMemories.slice(0, 5).map(memory => (
+                  <div key={memory.id} className="home-feed-card">
+                    {memory.media && memory.mediaType === 'image' && (
+                      <img src={memory.media} alt={memory.memory || 'Memory'} loading="lazy" />
+                    )}
+                    <div className="home-feed-body">
+                      <strong>{memory.name}</strong>
+                      {memory.memory && <p>{memory.memory}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="see-all-btn" onClick={() => setCurrentView('outreach')}>
+                See all tributes →
+              </button>
+            </div>
+          )}
         </div>
       )}
 
