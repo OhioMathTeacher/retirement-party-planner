@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App-light.css'
+import heroBg from './assets/20241104_K12125_005.jpg'
 import { db, storage } from './firebase'
 import { collection, addDoc, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -100,7 +101,7 @@ function App() {
       {currentView === 'home' && (
         <div className="home-view">
           <div className="hero-banner">
-            <img src="/photos/20151020_K04116_344.jpg" alt="Campus in Autumn" className="hero-img" />
+            <img src={heroBg} alt="Catherine's Retirement" className="hero-img" />
             <div className="hero-content">
               <h1>Welcome to Catherine's Retirement Tribute</h1>
               <p className="subtitle">
