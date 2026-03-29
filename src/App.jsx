@@ -139,16 +139,10 @@ function App() {
               <button className="section-btn">Upload Media →</button>
             </div>
 
-            <div className="section-card" onClick={() => setCurrentView('gallery')}>
-              <h2>Media Gallery</h2>
-              <p>Browse all the photos and videos shared by friends and colleagues.</p>
-              <button className="section-btn">View Gallery →</button>
-            </div>
-
             <div className="section-card" onClick={() => setCurrentView('outreach')}>
-              <h2>Memories & Outreach</h2>
-              <p>Read shared memories and invite others to contribute to the tribute.</p>
-              <button className="section-btn">View & Share →</button>
+              <h2>View Tributes</h2>
+              <p>Browse the photo gallery, read shared memories, and invite others to contribute.</p>
+              <button className="section-btn">View Tributes →</button>
             </div>
           </div>
         </div>
@@ -283,34 +277,7 @@ function App() {
         </div>
       )}
 
-      {currentView === 'gallery' && (
-        <div className="gallery-view">
-          <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
-          <h2>Media Gallery</h2>
-
-          {mediaMemories.length === 0 ? (
-            <p className="no-memories">No photos or videos have been shared yet. Be the first!</p>
-          ) : (
-            <div className="gallery-grid">
-              {mediaMemories.map(memory => (
-                <div key={memory.id} className="gallery-item" onClick={() => setLightboxItem(memory)}>
-                  {memory.mediaType === 'image' ? (
-                    <img src={memory.media} alt={memory.memory || 'Memory'} loading="lazy" />
-                  ) : (
-                    <video src={memory.media} />
-                  )}
-                  <div className="gallery-caption">
-                    <strong>{memory.name}</strong>
-                    {memory.memory && <p>{memory.memory}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {currentView === 'outreach' && (
+{currentView === 'outreach' && (
         <div className="outreach-view">
           <button className="back-btn" onClick={() => setCurrentView('home')}>← Back to Home</button>
 
@@ -318,7 +285,7 @@ function App() {
             <img src={heroBg} alt="Autumn Leaves" />
           </div>
 
-          <h2>Memories & Outreach</h2>
+          <h2>View Tributes</h2>
 
           <div className="share-section">
             <h3>Invite Others</h3>
@@ -336,12 +303,29 @@ function App() {
             </div>
           </div>
 
-          <div className="gallery-cta" onClick={() => setCurrentView('gallery')}>
-            <span>View the Photo & Video Gallery →</span>
-          </div>
+          {mediaMemories.length > 0 && (
+            <div className="memories-stream">
+              <h3>Photos & Videos ({mediaMemories.length})</h3>
+              <div className="gallery-grid">
+                {mediaMemories.map(memory => (
+                  <div key={memory.id} className="gallery-item" onClick={() => setLightboxItem(memory)}>
+                    {memory.mediaType === 'image' ? (
+                      <img src={memory.media} alt={memory.memory || 'Memory'} loading="lazy" />
+                    ) : (
+                      <video src={memory.media} />
+                    )}
+                    <div className="gallery-caption">
+                      <strong>{memory.name}</strong>
+                      {memory.memory && <p>{memory.memory}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="memories-stream">
-            <h3>Public Memories ({textMemories.length})</h3>
+            <h3>Written Memories ({textMemories.length})</h3>
 
             {textMemories.length === 0 ? (
               <p className="no-memories">No written memories shared yet. Be the first!</p>
