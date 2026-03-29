@@ -62,14 +62,15 @@ function App() {
         mediaType = formData.media.type.startsWith('image') ? 'image' : 'video'
       }
 
-      await withTimeout(addDoc(collection(db, 'memories'), {
+      // Save to Firebase in the background — don't block the UI on it
+      addDoc(collection(db, 'memories'), {
         name: formData.name,
         memory: formData.memory,
         isPublic: formData.isPublic,
         media: mediaUrl,
         mediaType: mediaType,
         timestamp: new Date().toISOString()
-      }))
+      }).catch(err => console.error("Firebase write failed:", err))
 
       setFormData({
         name: '',
@@ -78,7 +79,7 @@ function App() {
         media: null,
         mediaPreview: null
       })
-
+      setIsSubmitting(false)
       setSubmitStatus({ type: 'success', message: 'Thank you for sharing your memory!' })
       setTimeout(() => {
         setSubmitStatus(null)
@@ -87,9 +88,8 @@ function App() {
 
     } catch (error) {
       console.error("Error saving to Firebase: ", error)
-      setSubmitStatus({ type: 'error', message: 'Something went wrong saving your memory. Please try again.' })
-    } finally {
       setIsSubmitting(false)
+      setSubmitStatus({ type: 'error', message: 'Something went wrong saving your memory. Please try again.' })
     }
   }
 
