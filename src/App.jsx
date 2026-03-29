@@ -12,6 +12,7 @@ function App() {
   const [submitStatus, setSubmitStatus] = useState(null)
   const [lightboxItem, setLightboxItem] = useState(null)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     memory: '',
@@ -149,6 +150,7 @@ function App() {
           {publicMemories.length > 0 && (
             <div className="home-feed">
               <h3>Recent Memories</h3>
+              <div className="corkboard">
               <div className="home-feed-grid">
                 {publicMemories.slice(0, 5).map(memory => (
                   <div key={memory.id} className="home-feed-card">
@@ -165,6 +167,7 @@ function App() {
               <button className="see-all-btn" onClick={() => setCurrentView('outreach')}>
                 See all tributes →
               </button>
+              </div>
             </div>
           )}
         </div>
@@ -369,6 +372,17 @@ function App() {
           </div>
         </div>
       )}
+      <footer className="site-footer">
+        <button className="about-link" onClick={() => setShowAbout(!showAbout)}>
+          About this site
+        </button>
+        {showAbout && (
+          <div className="about-panel">
+            Developed by <strong>Todd Edwards</strong> using <strong>Claude Code</strong> + <strong>VS Code</strong>.
+            Your submissions are securely stored in <strong>Google Firebase</strong>.
+          </div>
+        )}
+      </footer>
     </div>
   )
 }
