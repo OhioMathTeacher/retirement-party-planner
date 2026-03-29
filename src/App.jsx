@@ -60,7 +60,7 @@ function App() {
         isPublic: formData.isPublic,
         media: mediaUrl,
         mediaType: mediaType,
-        timestamp: new Date().toISOString()
+        timestamp: Date.now() 
       })
       
       setFormData({
@@ -71,13 +71,13 @@ function App() {
         mediaPreview: null
       })
       
+      setIsSubmitting(false)
       alert('Thank you for sharing your memory!')
       setCurrentView('home')
 
     } catch (error) {
       console.error("Error saving to Firebase: ", error)
-      alert("Uh oh, something went wrong saving your memory. Please try again!")
-    } finally {
+      alert("Uh oh, something went wrong. Please try again!")
       setIsSubmitting(false)
     }
   }
@@ -258,14 +258,14 @@ function App() {
             <div className="share-link">
               <input 
                 type="text" 
-                value={window.location.href} 
+                value="https://golden-sfogliatella-f0bb3c.netlify.app" 
                 readOnly 
                 onClick={(e) => e.target.select()}
                 title="This is the direct link to this website"
               />
               <button 
                 onClick={() => {
-                  navigator.clipboard.writeText(window.location.href)
+                  navigator.clipboard.writeText("https://golden-sfogliatella-f0bb3c.netlify.app") 
                   alert('Link copied to clipboard!')
                 }}
                 className="copy-btn"
